@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AskLegal.ai - Judgment Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+  <style>
+    body { font-family: 'Space Mono', monospace; }
+    html, body { overflow-x: hidden; margin: 0; padding: 0; height: 100%; }
+    @media (max-width: 768px) {
+      .no-hover:hover { background-color: inherit !important; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 h-screen">
+  <div class="flex h-full relative">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col absolute md:relative z-20 h-full transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+      <div class="p-4 font-bold text-xl flex items-center space-x-2">
+        <span>⚖️</span>
+        <span>AskLegal.ai</span>
+      </div>
+      <div class="p-2">
+        <input type="text" placeholder="Search" class="w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring"/>
+      </div>
+      <nav class="flex-1 overflow-y-auto">
+        <ul class="space-y-2 p-2 text-sm" id="chat-list">
+          {% for chat in chat_list | reverse %}
+          <li>
+            <button 
+              class="block w-full text-left p-2 rounded hover:bg-gray-100 truncate no-hover" 
+              onclick="window.location.href='/?chat={{ chat.name }}'" 
+              title="{{ chat.title }}">
+              {{ chat.title }}
+            </button>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+      <div class="p-2 hidden md:block">
+        <button id="new-chat-btn" class="w-full bg-black text-white p-2 rounded-lg hover:bg-gray-800 text-sm">New chat</button>
+      </div>
+
+      <div class="border-t border-gray-200 p-3 bg-white">
+        <div class="flex items-center gap-2 mb-3 min-w-0">
+          <div class="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-bold">
+            {{ (session.get('user', 'U')[0] | upper) }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs text-gray-500">Signed in as</p>
+            <p class="text-sm font-medium truncate" title="{{ session.get('user', '') }}">{{ session.get('user', '') }}</p>
+          </div>
+        </div>
+        <form method="POST" action="{{ url_for('logout') }}">
+          <button type="submit" class="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            Sign out
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Sidebar Toggle Button -->
+    <button id="sidebar-toggle" class="fixed bottom-4 left-4 z-30 bg-white border border-gray-300 rounded-full p-1 shadow md:hidden">
+      <i data-lucide="menu" id="toggle-icon" class="w-5 h-5"></i>
+    </button>
+
+    <!-- Floating New Chat Button for small screens -->
+    <button id="floating-new-chat" class="fixed bottom-4 right-4 z-30 bg-black text-white p-3 rounded-full shadow md:hidden">
+      + New Chat
+    </button>
+
+    <!-- Main area -->
+    <main class="flex-1 flex flex-col">
+      <header class="p-4 flex justify-between items-center bg-gray-50">
+        <div class="flex space-x-4">
+          <a href="/"><button class="text-gray-500 hover:text-black">Chat</button></a>
+          <a href="{{ url_for('predict_page') }}"><button class="font-semibold">Predict</button></a>
+          <a href="{{ url_for('generate_page') }}"><button class="text-gray-500 hover:text-black">Generate</button></a>
+        </div>
+      </header>
+
+      <div class="flex-1 p-6 space-y-6 overflow-y-auto max-w-3xl mx-auto">
+        <div class="bg-white rounded-lg shadow p-6">
+          <form id="predict-form" enctype="multipart/form-data">
+            <label class="block mb-2 font-semibold">Upload Legal Document (PDF, DOCX, or Image)</label>
+            <input type="file" name="file" id="file-upload" class="block w-full border border-gray-300 rounded p-2 mb-4" required/>
+            <input type="hidden" name="file_type" id="file-type" value=""/>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label for="case-type" class="block text-sm mb-1">Case type</label>
+                <select id="case-type" name="case_type" class="w-full border border-gray-300 rounded p-2" required>
+                  <option value="">Select case type</option>
+                  <option value="BA">Bail Application (BA)</option><option value="ABA">Anticipatory Bail (ABA)</option>
+                  <option value="CRL_A">Criminal Appeal (CRL_A)</option><option value="CRL_REV">Criminal Revision (CRL_REV)</option>
+                  <option value="CS">Civil Suit (CS)</option><option value="CA">Civil Appeal (CA)</option>
+                  <option value="WP_C">Writ Petition - Civil (WP_C)</option><option value="PIL">Public Interest Litigation (PIL)</option>
+                  <option value="MACT">Motor Accident Claim (MACT)</option><option value="SLP_C">Special Leave Petition - Civil (SLP_C)</option>
+                  <option value="CP">Company Petition (CP)</option>
+                </select>
+              </div>
+              <div>
+                <label for="court-name" class="block text-sm mb-1">Court name</label>
+                <input id="court-name" name="court_name" list="court-options" placeholder="e.g. High Court of Andhra Pradesh" class="w-full border border-gray-300 rounded p-2" required/>
+                <datalist id="court-options"><option value="Supreme Court of India"></option><option value="High Court of Andhra Pradesh"></option><option value="High Court of Telangana"></option><option value="Delhi High Court"></option><option value="Bombay High Court"></option><option value="Madras High Court"></option><option value="Karnataka High Court"></option><option value="Kerala High Court"></option><option value="Allahabad High Court"></option><option value="Calcutta High Court"></option></datalist>
+              </div>
+              <div>
+                <label for="filing-year" class="block text-sm mb-1">Filing year</label>
+                <input id="filing-year" name="year" type="number" min="1950" max="2035" value="2026" class="w-full border border-gray-300 rounded p-2" required/>
+              </div>
+            </div>
+            <textarea id="case-details" rows="10" placeholder="Extracted file content will appear here..." class="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring" readonly></textarea>
+            <div class="text-center mt-4">
+              <button type="submit" class="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800">Analyze Case</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="verdict-section" class="hidden bg-white rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold mb-2">Case Analysis</h2>
+          <div id="historical-result" class="mb-5"></div>
+          <h3 class="font-semibold mb-2">AI-assisted case review</h3>
+          <div id="verdict-result" class="prose prose-sm text-gray-700"></div>
+        </div>
+
+        <div id="error-msg" class="hidden text-red-500 text-sm"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Loading Spinner Overlay -->
+  <div id="loading-indicator" class="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center hidden">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-white border-opacity-60"></div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const toggleIcon = document.getElementById('toggle-icon');
+    let sidebarOpen = false;
+
+    toggleBtn.addEventListener('click', () => {
+      sidebarOpen = !sidebarOpen;
+      sidebar.classList.toggle('-translate-x-full');
+      toggleIcon.setAttribute('data-lucide', sidebarOpen ? 'menu' : 'menu');
+      lucide.createIcons();
+    });
+
+    document.getElementById('floating-new-chat').addEventListener('click', async () => {
+      const res = await fetch('/new_chat', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) window.location.href = '/?chat=' + encodeURIComponent(data.chat_name);
+    });
+
+    document.getElementById('new-chat-btn').addEventListener('click', async () => {
+      const res = await fetch('/new_chat', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) window.location.href = '/?chat=' + encodeURIComponent(data.chat_name);
+    });
+
+    document.getElementById('file-upload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        let type = '';
+        if (ext === 'pdf') type = 'pdf';
+        else if (ext === 'docx') type = 'docx';
+        else if (["png", "jpg", "jpeg"].includes(ext)) type = 'image';
+        else type = '';
+
+        if (!type) {
+          alert("Unsupported file type.");
+          e.target.value = '';
+          return;
+        }
+        document.getElementById('file-type').value = type;
+      }
+    });
+
+    document.getElementById('predict-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const formData = new FormData(e.target);
+      const file = formData.get('file');
+      if (!file || !formData.get('file_type')) {
+        alert("Please upload a valid file.");
+        return;
+      }
+
+      document.getElementById('loading-indicator').classList.remove('hidden');
+
+      try {
+        const response = await fetch('/predict', { method: 'POST', body: formData });
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          document.getElementById('error-msg').innerText = data.error;
+          document.getElementById('error-msg').classList.remove('hidden');
+        } else {
+          document.getElementById('error-msg').classList.add('hidden');
+          document.getElementById('case-details').value = data.text || "(No text extracted)";
+          const resultEl = document.getElementById('verdict-result');
+          resultEl.innerHTML = DOMPurify.sanitize(marked.parse(`**${data.result.assessment || 'Assessment'}**\n\n${data.result.analysis}\n\n> ${data.result.disclaimer || ''}`));
+          const historical = data.result.historical_model || {};
+          const historicalEl = document.getElementById('historical-result');
+          if (historical.available) {
+            const rows = historical.outcomes.map(item => `<li class="flex justify-between gap-3 border-b py-2"><span>${item.outcome.replaceAll('_',' ')}</span><strong>${(item.historical_probability * 100).toFixed(1)}%</strong></li>`).join('');
+            historicalEl.innerHTML = `<div class="rounded-lg border p-4"><h3 class="font-semibold mb-2">Historical outcome pattern (metadata model)</h3><p class="text-sm text-gray-600 mb-2">${historical.scope}</p><ul>${rows}</ul><p class="text-xs text-amber-700 mt-3">${historical.disclaimer}</p></div>`;
+          } else {
+            historicalEl.innerHTML = `<div class="rounded-lg border p-4"><h3 class="font-semibold">Historical model not available</h3><p class="text-sm text-gray-600 mt-1">${historical.message || 'Train the model before using this section.'}</p></div>`;
+          }
+          document.getElementById('verdict-section').classList.remove('hidden');
+        }
+
+      } catch (err) {
+        document.getElementById('error-msg').innerText = 'Error analyzing case.';
+        document.getElementById('error-msg').classList.remove('hidden');
+      } finally {
+        document.getElementById('loading-indicator').classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Flask>=3.1,<4.0
+python-dotenv>=1.1
+Werkzeug>=3.1
+# Current Google Gen AI SDK (used by chatbot, case assessment and document generation)
+google-genai>=1.0
+python-docx>=1.2
+PyPDF2>=3.0
+Pillow>=11.0
+pytesseract>=0.3.13

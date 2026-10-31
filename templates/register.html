@@ -1,0 +1,141 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | LawGenius AI</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #101c35, #244c78);
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0,0,0,.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #173d65;
+            margin-bottom: 10px;
+        }
+
+        p {
+            text-align: center;
+            color: #777;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin: 15px 0 7px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 25px;
+            border: none;
+            border-radius: 8px;
+            background: #1d5488;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #123d67;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        a {
+            color: #1d5488;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            background: #fff0f0;
+            color: #a22;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>⚖ LawGenius AI</h1>
+
+    <p>Create your account</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="message">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register') }}">
+
+        <label>Email Address</label>
+        <input
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+        >
+
+        <label>Password</label>
+        <input
+            type="password"
+            name="password"
+            placeholder="Create a password"
+            required
+        >
+
+        <button type="submit">Create Account</button>
+
+    </form>
+
+    <div class="footer">
+        Already registered?
+        <a href="{{ url_for('login') }}">Login</a>
+    </div>
+
+</div>
+
+</body>
+</html>

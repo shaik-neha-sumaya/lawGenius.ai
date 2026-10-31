@@ -1,0 +1,22 @@
+.env
+venv
+ipc_embed_db
+ipc_raw.json
+merge_laws.py
+embedding_gen.py
+ingest.py
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.vscode/
+.idea/
+uploads/
+generated_docs/
+outcome_model.joblib
+metrics.json
+*.log
+LawGenius_Project.zip
+ipc_embed_db_inlegalbert/
+# Local database and user information
+data/*.sqlite3
+data/users.json

@@ -1,0 +1,6 @@
+# Install only when ENABLE_SEMANTIC_RAG=true in .env.
+faiss-cpu>=1.9
+langchain-community>=0.3
+langchain-core>=0.3
+langchain-huggingface>=0.1
+sentence-transformers>=3.0
